@@ -39,14 +39,13 @@ $config = [
             ],
         ],
         'db' => $db,
-        /*
+        //для начала включаю ЧПУ
         'urlManager' => [
             'enablePrettyUrl' => true,
             'showScriptName' => false,
             'rules' => [
             ],
         ],
-        */
     ],
     'params' => $params,
 ];
