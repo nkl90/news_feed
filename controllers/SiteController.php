@@ -2,11 +2,14 @@
 
 namespace app\controllers;
 
+use Faker\Provider\DateTime;
 use Yii;
+use app\models\Article;
 use yii\filters\AccessControl;
 use yii\web\Controller;
 use yii\web\Response;
 use yii\filters\VerbFilter;
+use yii\data\Pagination;
 use app\models\LoginForm;
 use app\models\ContactForm;
 
@@ -47,48 +50,55 @@ class SiteController extends Controller
             'error' => [
                 'class' => 'yii\web\ErrorAction',
             ],
-            'captcha' => [
-                'class' => 'yii\captcha\CaptchaAction',
-                'fixedVerifyCode' => YII_ENV_TEST ? 'testme' : null,
-            ],
         ];
     }
 
-    /**
-     * Displays homepage.
-     *
-     * @return string
-     */
     public function actionIndex()
     {
-        return $this->render('index');
+        $news = Article::find()
+            ->where([ 'is_verified' => Article::IS_VERIFIED ])
+            ->andWhere('public_dt <= "' . date('Y-m-d H:i:s') . '" OR public_dt IS NULL')
+            ->orderBy('public_dt', 'DESC')
+            ->orderBy('id', 'DESC');
+        $countNews = clone $news;
+        $pages = new Pagination(['totalCount' => $countNews->count(), 'pageSize' => 10]);
+        $pages->pageSizeParam = false;
+        $models = $news->offset($pages->offset)
+            ->limit($pages->limit)
+            ->all();
+        return $this->render('index', [
+            'items' => $models,
+            'pages' => $pages
+        ]);
     }
 
-    /**
-     * Login action.
-     *
-     * @return Response|string
-     */
+    public function actionNews($id)
+    {
+        if (($item = Article::findOne($id)) !== null) {
+            //Считаем просмотры
+            $item->view_count += 1;
+            $item->save();
+            return $this->render('show_news', ['item' => $item]);
+        } else {
+            throw new NotFoundHttpException('The requested page does not exist.');
+        }
+    }
+
     public function actionLogin()
     {
         if (!Yii::$app->user->isGuest) {
-            return $this->goHome();
+            return $this->redirect(['article/index']);
         }
 
         $model = new LoginForm();
         if ($model->load(Yii::$app->request->post()) && $model->login()) {
-            return $this->goBack();
+            return $this->redirect(['article/index']);
         }
         return $this->render('login', [
             'model' => $model,
         ]);
     }
 
-    /**
-     * Logout action.
-     *
-     * @return Response
-     */
     public function actionLogout()
     {
         Yii::$app->user->logout();
@@ -96,31 +106,18 @@ class SiteController extends Controller
         return $this->goHome();
     }
 
-    /**
-     * Displays contact page.
-     *
-     * @return Response|string
-     */
-    public function actionContact()
+    public function actionAddNews()
     {
-        $model = new ContactForm();
-        if ($model->load(Yii::$app->request->post()) && $model->contact(Yii::$app->params['adminEmail'])) {
-            Yii::$app->session->setFlash('contactFormSubmitted');
+        $model = new Article();
 
-            return $this->refresh();
+        if ($model->load(Yii::$app->request->post())) {
+            $model->added_dt = date('Y-m-d H:i:s');
+            $model->save();
+            return $this->render('add_news_complete');
+        } else {
+            return $this->render('add_news', [
+                'model' => $model,
+            ]);
         }
-        return $this->render('contact', [
-            'model' => $model,
-        ]);
-    }
-
-    /**
-     * Displays about page.
-     *
-     * @return string
-     */
-    public function actionAbout()
-    {
-        return $this->render('about');
     }
 }
