@@ -61,7 +61,7 @@ class SiteController extends Controller
             ->orderBy('public_dt', 'DESC')
             ->orderBy('id', 'DESC');
         $countNews = clone $news;
-        $pages = new Pagination(['totalCount' => $countNews->count(), 'pageSize' => 10]);
+        $pages = new Pagination(['totalCount' => $countNews->count(), 'pageSize' => 5]);
         $pages->pageSizeParam = false;
         $models = $news->offset($pages->offset)
             ->limit($pages->limit)
